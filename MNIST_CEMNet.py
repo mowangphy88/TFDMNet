@@ -88,8 +88,7 @@ class ComplexDotLayer(tf.keras.layers.Layer):
         self.initMethod = 1  # 0: regular init; 1: small filter -> zero padding -> 2dfft
         self.convfilterSize = 5
         self.convfilterSizeIdentitySize = 5
-
-        # TODO: generate indentity filter and its corresponding fft (using the same size as feature?)
+        
         if self.convfilterSizeIdentitySize >= self.featureSize[1]:
             convfilterIdentityPad = np.ones((self.featureSize[1], self.featureSize[1]))
         else:
@@ -267,8 +266,6 @@ class ComplexDropoutLayer_approx(tf.keras.layers.Layer):
 
         if training:
             [batchSize, H, W, C] = x_Real.shape
-            # drop_ratio_Real = ( (np.random.rand(batchSize, H, W, C)*(self.droprate)-(self.droprate/2) )+1 )
-            # drop_ratio_Imag = ( (np.random.rand(batchSize, H, W, C)*(self.droprate)-(self.droprate/2) )+1 )
             drop_ratio_Real = np.random.normal(1.0, self.droprate/2, size=(batchSize, H, W, C))# small droprate means small variance of normal distribution
             drop_ratio_Imag = np.random.normal(1.0, self.droprate/2, size=(batchSize, H, W, C))
 
@@ -277,6 +274,32 @@ class ComplexDropoutLayer_approx(tf.keras.layers.Layer):
         else:
             out_Real = x_Real
             out_Imaginary = x_Imaginary
+
+        return out_Real, out_Imaginary
+    
+class ComplexDropoutLayer_approx_fc(tf.keras.layers.Layer):
+    def __init__(self, droprate):
+        super(ComplexDropoutLayer_approx_fc, self).__init__()
+
+        self.droprate = droprate
+
+        self.mulRealLayer = tf.keras.layers.Multiply()
+        self.mulImagLayer = tf.keras.layers.Multiply()
+
+    def call(self, inputs, training):
+        x_Real = inputs[0]
+        x_Imaginary = inputs[1]
+
+        if training:
+            [batchSize, L] = x_Real.shape
+            drop_ratio_Real = np.random.normal(1.0, self.droprate/2, size=(batchSize, L))# small droprate means small variance of normal distribution
+            drop_ratio_Imag = np.random.normal(1.0, self.droprate/2, size=(batchSize, L))
+
+            out_Real = self.mulRealLayer([x_Real, drop_ratio_Real])
+            out_Imaginary = self.mulRealLayer([x_Imaginary, drop_ratio_Imag])
+        else:
+            out_Real = x_Real #/(1-self.droprate/2)
+            out_Imaginary = x_Imaginary #/(1-self.droprate/2)
 
         return out_Real, out_Imaginary
         
@@ -330,6 +353,48 @@ class ComplexPoolLayer(tf.keras.layers.Layer):
             out_Real = out_time
             out_Imaginary = out_time
         return out_Real, out_Imaginary
+    
+class complexfcLayer(tf.keras.layers.Layer):
+    def __init__(self, neurNum):
+        super(complexfcLayer, self).__init__()
+        self.neurNum = neurNum
+        self.fc_real = tf.keras.layers.Dense(self.neurNum, activation=None)
+        self.fc_imag = tf.keras.layers.Dense(self.neurNum, activation=None)
+
+        self.bnorm_Real = tf.keras.layers.BatchNormalization()
+        self.relu_Real = tf.keras.layers.LeakyReLU(alpha=0.2)  # Default: alpha=0.3
+        self.bnorm_Imaginary = tf.keras.layers.BatchNormalization()
+        self.relu_Imaginary = tf.keras.layers.LeakyReLU(alpha=0.2)
+
+    # @tf.function
+    def call(self, inputs, training):
+        x_Real = inputs[0]  # [batchSize, H, W, C]
+        x_Imaginary = inputs[1]
+
+        out_Real = self.fc_real(x_Real)
+        out_Imaginary = self.fc_imag(x_Imaginary)
+
+        out_Real = self.bnorm_Real(out_Real, training=training)
+        out_Real = self.relu_Real(out_Real)
+        out_Imaginary = self.bnorm_Imaginary(out_Imaginary, training=training)
+        out_Imaginary = self.relu_Imaginary(out_Imaginary)
+
+        return out_Real, out_Imaginary
+
+
+class complexconcatLayer(tf.keras.layers.Layer):
+    def __init__(self):
+        super(complexconcatLayer, self).__init__()
+        self.concat = tf.keras.layers.Concatenate(axis=1)
+
+    # @tf.function
+    def call(self, inputs):
+        x_Real = inputs[0]  # [batchSize, H, W, C]
+        x_Imaginary = inputs[1]
+
+        out = self.concat([x_Real, x_Imaginary])
+
+        return out
 
 
 class LeNet_CEMNet(tf.keras.models.Model):
@@ -368,19 +433,16 @@ class LeNet_CEMNet(tf.keras.models.Model):
 
         # Flatten
         self.flatten1 = tf.keras.layers.Flatten()
+        self.flatten2 = tf.keras.layers.Flatten()
 
-        # Block 6.2
-        self.fc1 = tf.keras.layers.Dense(120, activation=None)
-        self.relu14 = tf.keras.layers.ReLU()
-        self.bnorm14 = tf.keras.layers.BatchNormalization()
-        self.drop14 = tf.keras.layers.Dropout(self.droprate2)
-        self.fc2 = tf.keras.layers.Dense(84, activation=None)
-        self.bnorm15 = tf.keras.layers.BatchNormalization()
-        self.relu15 = tf.keras.layers.ReLU()
-        self.drop15 = tf.keras.layers.Dropout(self.droprate2)
+        # complex fc
+        self.fc1 = complexfcLayer(120)
+        self.drop3 = ComplexDropoutLayer_approx_fc(self.droprate2)
+        self.fc2 = complexfcLayer(84)
+        self.drop4 = ComplexDropoutLayer_approx_fc(self.droprate2)
+        self.concat = complexconcatLayer()
         self.output1 = tf.keras.layers.Dense(self.num_classes, activation='softmax')
 
-    # @tf.function
     def call(self, inputs, training=None, isWeightFix=False):
         # Inputs
         input_Real, input_Imaginary = inputs
@@ -397,19 +459,15 @@ class LeNet_CEMNet(tf.keras.models.Model):
         x_real, x_imaginary = self.drop2([x_real, x_imaginary], training=training)
         x, _ = self.pool2([x_real, x_imaginary], movingback=False, training=training)
 
-        # Flatten
-        xb1 = self.flatten1(x)
+        # complex fc layers
+        x_real = self.flatten1(x_real)
+        x_imaginary = self.flatten2(x_imaginary)
 
-        # Block 6:
-        xb1 = self.fc1(xb1)
-        xb1 = self.relu14(xb1)
-        xb1 = self.bnorm14(xb1, training=training)
-        xb1 = self.drop14(xb1, training=training)
-
-        xb1 = self.fc2(xb1)
-        xb1 = self.bnorm15(xb1, training=training)
-        xb1 = self.relu15(xb1)
-        xb1 = self.drop15(xb1, training=training)
+        x_real, x_imaginary = self.fc1([x_real, x_imaginary], training=training)
+        x_real, x_imaginary = self.drop3([x_real, x_imaginary], training=training)
+        x_real, x_imaginary = self.fc2([x_real, x_imaginary], training=training)
+        x_real, x_imaginary = self.drop4([x_real, x_imaginary], training=training)
+        xb1 = self.concat([x_real, x_imaginary])
         ClsResults = self.output1(xb1)
 
         return ClsResults
