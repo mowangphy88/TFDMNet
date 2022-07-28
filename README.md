@@ -23,4 +23,6 @@ If you hope to use the codes of CEMNet, please cite:
 
 
 Update log 2022-07-28:
-We replace Leaky ReLUs using a new approximated relu layer, which is combined in the definition of approximated dropout layer. See the current arXiv edition of our paper for more details. 
+(1) We replace Leaky ReLUs using a new approximated relu layer, which is combined in the definition of approximated dropout layer. See the current arXiv edition of our paper for more details. 
+
+(2) We update CIFAR codes, which include data preparation, network and train_test. In our CIFAR code, we implement our new memory saving technique. See the current arXiv edition of our paper for more details.
