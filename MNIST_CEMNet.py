@@ -189,14 +189,6 @@ class ComplexDotLayer(tf.keras.layers.Layer):
             weightFreq_fixed = tf.signal.fft2d(weightTime_fixed)
             weightFreq_fixed = tf.transpose(weightFreq_fixed, [2, 3, 0, 1])
             
-            # ifft3d and fft 3d
-            # weightComplex_trans = tf.transpose(weightComplex, [3, 0, 1, 2]) # H-W-C_in-C_out -> C_in-C_out-H-W
-            # weightTime = tf.signal.ifft3d(weightComplex_trans)
-            # weightTime = tf.math.real(weightTime)
-            # weightTime_fixed = tf.math.multiply(weightTime, self.convfilterIdentityPad)
-            # weightTime_fixed = tf.cast(weightTime_fixed, tf.complex64)
-            # weightFreq_fixed = tf.signal.fft3d(weightTime_fixed)
-            # weightFreq_fixed = tf.transpose(weightFreq_fixed, [1, 2, 3, 0]);
             
             weightRealFixed = tf.math.real(weightFreq_fixed)
             weightImagFixed = tf.math.imag(weightFreq_fixed)
@@ -244,14 +236,14 @@ class ComplexDotLayer(tf.keras.layers.Layer):
         out_Imaginary = tf.math.reduce_sum(cur_out_Imaginary, 3)
 
         out_Real = self.bnorm_Real(out_Real, training=training)
-        out_Real = self.relu_Real(out_Real)
+        # out_Real = self.relu_Real(out_Real)
         out_Imaginary = self.bnorm_Imaginary(out_Imaginary, training=training)
-        out_Imaginary = self.relu_Imaginary(out_Imaginary)
+        # out_Imaginary = self.relu_Imaginary(out_Imaginary)
 
         return out_Real, out_Imaginary
 
 
-class ComplexDropoutLayer_approx(tf.keras.layers.Layer):
+class ComplexDropoutLayer_approx(tf.keras.layers.Layer): # Leaky ReLU included
     def __init__(self, droprate):
         super(ComplexDropoutLayer_approx, self).__init__()
 
@@ -264,16 +256,22 @@ class ComplexDropoutLayer_approx(tf.keras.layers.Layer):
         x_Real = inputs[0]
         x_Imaginary = inputs[1]
 
+        [batchSize, H, W, C] = x_Real.shape
+
+        relu_ratio_Real = np.random.normal(1.0, self.droprate / 6, size=(batchSize, H, W, C))  # small droprate means small variance of normal distribution
+        relu_ratio_Imag = np.random.normal(1.0, self.droprate / 6, size=(batchSize, H, W, C))
+
         if training:
-            [batchSize, H, W, C] = x_Real.shape
             drop_ratio_Real = np.random.normal(1.0, self.droprate/2, size=(batchSize, H, W, C))# small droprate means small variance of normal distribution
             drop_ratio_Imag = np.random.normal(1.0, self.droprate/2, size=(batchSize, H, W, C))
 
-            out_Real = self.mulRealLayer([x_Real, drop_ratio_Real])
-            out_Imaginary = self.mulRealLayer([x_Imaginary, drop_ratio_Imag])
+            out_Real = self.mulRealLayer([x_Real, relu_ratio_Real])
+            out_Real = self.mulRealLayer([out_Real, drop_ratio_Real])
+            out_Imaginary = self.mulRealLayer([x_Imaginary, relu_ratio_Imag])
+            out_Imaginary = self.mulRealLayer([out_Imaginary, drop_ratio_Imag])
         else:
-            out_Real = x_Real
-            out_Imaginary = x_Imaginary
+            out_Real = self.mulRealLayer([x_Real, relu_ratio_Real])
+            out_Imaginary = self.mulRealLayer([x_Imaginary, relu_ratio_Imag])
 
         return out_Real, out_Imaginary
     
@@ -326,9 +324,6 @@ class ComplexPoolLayer(tf.keras.layers.Layer):
             t_time = tf.math.real(t_time)
             x_time = tf.transpose(t_time, [1, 2, 3, 0]);
             
-            # ifft 3d and fft 3d
-            # t_time = tf.signal.ifft3d(t)
-            # x_time = tf.math.real(t_time)
         else:
             t = tf.transpose(t, [3, 0, 1, 2])
             t_time = tf.signal.ifft2d(t)
@@ -343,9 +338,6 @@ class ComplexPoolLayer(tf.keras.layers.Layer):
             out_time = tf.transpose(out_time, [3, 0, 1, 2])
             out_freq = tf.signal.fft2d(out_time)
             t_freq = tf.transpose(out_freq, [1, 2, 3, 0]);
-            
-            # ifft 3d and fft 3d
-            # t_freq = tf.signal.fft3d(out_time)
                 
             out_Real = tf.math.real(t_freq)
             out_Imaginary = tf.math.imag(t_freq)
