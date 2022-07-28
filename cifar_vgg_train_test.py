@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 # import cv2
 
-from complexNet_dot_pixelwisemul_memsaving import VGG16_complex_dot_mul_multiobj
+from cifar_CEMNet import VGG16_CEMNet
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
 
@@ -162,7 +162,7 @@ learning_rate_schedules = CosineDecayWithWarmUP(initial_learning_rate=lr_time,
                                                     warm_up_step=warm_iterations)
 
 with mirrored_strategy.scope():
-    model = VGG16_complex_dot_mul_multiobj(batchSize_per_replica)
+    model = VGG16_CEMNet(batchSize_per_replica)
     TimeOptimizer = tf.keras.optimizers.RMSprop(learning_rate=learning_rate_schedules, momentum=0.9) #SGD/RMSprop
     # FreqOptimizer = tf.keras.optimizers.RMSprop(learning_rate=initlr_freq, momentum=0.9)
     
@@ -220,13 +220,7 @@ for epoch in range(n_of_epochs):
     num_batches = 0
     for step, (xl, xr, y) in enumerate(dist_train_loader): # xl: real; xr: imaginary
 
-        # if data_augmentation:
-            # print(type(xl))
-            # N = xl.shape[0]
-            # xl = images_augment(xl, N, H, W, C)
-            # xr = images_augment(xr, N, H, W, C)
-
-        if step % 1 == 0: # epoch >= 2 and step % 1 == 0: #
+        if step % 1 == 0: # epoch >= 2 and step % 1 == 0: 
             isFeatFix = False
         else:
             isFeatFix = False
@@ -234,8 +228,6 @@ for epoch in range(n_of_epochs):
         total_loss += distributed_train_step((xl, xr, y, isFeatFix))
         num_batches += 1
 
-        # if epoch > 1:
-        #    TimeOptimizer.learning_rate = lr_time
 
         if step % 1 == 0:
             print(epoch, step, 'loss:', float(total_loss / num_batches), 'acc:', clsMetric.result().numpy())
@@ -251,14 +243,11 @@ for epoch in range(n_of_epochs):
     clsMetric.reset_states()
 
     if epoch % 1 == 0:
-        # sumacc = 0
-        for (xl, xr, y) in dist_test_loader: #test_loader:
+        for (xl, xr, y) in dist_test_loader: 
             distributed_test_step((xl, xr, y))
             
         val_acc = metric_test.result()
         metric_test.reset_states()
-        # print('Current acc: ', metric_test.result().numpy())
-        # print('test acc:', sumacc / 500)
         print("Validation acc: %.4f" % (float(val_acc),))
         with open('test_log.txt', 'a') as f_val:
                 f_val.write('epoch:{}, '.format(epoch))
