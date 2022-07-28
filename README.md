@@ -20,3 +20,7 @@ If you hope to use the codes of CEMNet, please cite:
   
   copyright = {Creative Commons Attribution 4.0 International}
 }
+
+
+Update log 2022-07-28:
+We replace Leaky ReLUs using a new approximated relu layer, which is combined in the definition of approximated dropout layer. See the current arXiv edition of our paper for more details. 
