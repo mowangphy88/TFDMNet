@@ -223,15 +223,7 @@ class ComplexDotLayer(tf.keras.layers.Layer):
             weightFreq_fixed = tf.signal.fft2d(weightTime_fixed)
             weightFreq_fixed = tf.transpose(weightFreq_fixed, [2, 3, 0, 1])
             
-            # ifft3d and fft 3d
-            # weightComplex_trans = tf.transpose(weightComplex, [3, 0, 1, 2]) # H-W-C_in-C_out -> C_in-C_out-H-W
-            # weightTime = tf.signal.ifft3d(weightComplex_trans)
-            # weightTime = tf.math.real(weightTime)
-            # weightTime_fixed = tf.math.multiply(weightTime, self.convfilterIdentityPad)
-            # weightTime_fixed = tf.cast(weightTime_fixed, tf.complex64)
-            # weightFreq_fixed = tf.signal.fft3d(weightTime_fixed)
-            # weightFreq_fixed = tf.transpose(weightFreq_fixed, [1, 2, 3, 0]);
-            
+
             weightReal = tf.math.real(weightFreq_fixed)
             weightImaginary = tf.math.imag(weightFreq_fixed)
 
@@ -373,13 +365,9 @@ class ComplexDropoutLayer_approx(tf.keras.layers.Layer):
 
             out_Real = self.mulRealLayer([x_Real, relu_ratio_Real])
             out_Real = self.mulRealLayer([out_Real, drop_ratio_Real])
-            # out_Real = out_Real * (2/(7.0022*self.droprate))
             out_Imaginary = self.mulRealLayer([x_Imaginary, relu_ratio_Imag])
             out_Imaginary = self.mulRealLayer([out_Imaginary, drop_ratio_Imag])
-            # out_Imaginary = out_Imaginary * (2 / (7.0022 * self.droprate))
         else:
-            # out_Real = x_Real #/(1-self.droprate/2)
-            # out_Imaginary = x_Imaginary #/(1-self.droprate/2)
             out_Real = self.mulRealLayer([x_Real, relu_ratio_Real])
             out_Imaginary = self.mulRealLayer([x_Imaginary, relu_ratio_Imag])
 
@@ -400,8 +388,6 @@ class ComplexDropoutLayer_approx_fc(tf.keras.layers.Layer):
 
         if training:
             [batchSize, L] = x_Real.shape
-            # drop_ratio_Real = ( (np.random.rand(batchSize, H, W, C)*(self.droprate)-(self.droprate/2) )+1 )
-            # drop_ratio_Imag = ( (np.random.rand(batchSize, H, W, C)*(self.droprate)-(self.droprate/2) )+1 )
             drop_ratio_Real = np.random.normal(1.0, self.droprate/2, size=(batchSize, L))# small droprate means small variance of normal distribution
             drop_ratio_Imag = np.random.normal(1.0, self.droprate/2, size=(batchSize, L))
 
@@ -419,7 +405,6 @@ class ComplexPoolLayer(tf.keras.layers.Layer):
 
     def __init__(self, pooling_window_size, featureSize):
         super(ComplexPoolLayer, self).__init__()  # using average pooling
-        # weight_decay = 5e-4
         self.pooling_window_size = pooling_window_size
         self.featureSize = featureSize
         self.pool = tf.keras.layers.MaxPooling2D((self.pooling_window_size, self.pooling_window_size))
@@ -462,62 +447,6 @@ class ComplexPoolLayer(tf.keras.layers.Layer):
         else:
             out_Real = out_time
             out_Imaginary = out_time
-        return out_Real, out_Imaginary
-        
-class ComplexPoolLayer_magnitude(tf.keras.layers.Layer):
-
-    def __init__(self, pooling_window_size):
-        super(ComplexPoolLayer_magnitude, self).__init__()  # using average pooling
-        # weight_decay = 5e-4
-        self.pooling_window_size = pooling_window_size
-        # self.pool = tf.keras.layers.MaxPooling2D((self.pooling_window_size, self.pooling_window_size))
-
-    def call(self, inputs, training):
-        x_Real = inputs[0]
-        x_Imaginary = inputs[1]
-
-        # magnitude = tf.math.sqrt(tf.math.add(tf.math.square(x_Real), tf.math.square(x_Imaginary)))
-        [out_Real, idx] = tf.nn.max_pool_with_argmax(x_Real, ksize=self.pooling_window_size, strides=2, padding='VALID',
-                                                    include_batch_in_index=True)
-
-        [batchSize, H, W, C] = out_Real.shape
-
-        idx_1D = tf.reshape(idx, shape=[-1])
-        # x_Real_1D = tf.reshape(x_Real, shape=[-1])
-        x_Imaginary_1D = tf.reshape(x_Imaginary, shape=[-1])
-
-        # out_Real_1D = tf.gather(x_Real_1D, idx_1D)
-        out_Imaginary_1D = tf.gather(x_Imaginary_1D, idx_1D)
-
-        # out_Real = tf.reshape(out_Real_1D, shape=[batchSize, H, W, C])
-        out_Imaginary = tf.reshape(out_Imaginary_1D, shape=[batchSize, H, W, C])
-
-        return out_Real, out_Imaginary
-        
-class ComplexSpectralPoolLayer(tf.keras.layers.Layer):
-    def __init__(self, outSize, featureSize):
-        super(ComplexSpectralPoolLayer, self).__init__()  # using average pooling
-        # weight_decay = 5e-4
-        self.outSize = outSize
-        self.featureSize = featureSize
-
-    def call(self, inputs, movingback, training):
-        x_Real = inputs[0]
-        x_Imaginary = inputs[1]
-
-        t = tf.dtypes.complex(x_Real, x_Imaginary)
-        t_shift = tf.signal.fftshift(t, axes=(1, 2))
-        cut_start = np.ceil((self.featureSize[1] - self.outSize)/2)
-        cut_end = np.ceil((cut_start + self.outSize))
-        cut_start = tf.cast(cut_start, dtype=tf.int32)
-        cut_end = tf.cast(cut_end, dtype=tf.int32)
-        out_shift = t_shift[:, cut_start:cut_end, cut_start:cut_end, :]
-
-        out = tf.signal.ifftshift(out_shift, axes=(1, 2))
-
-        out_Real = tf.math.real(out)
-        out_Imaginary = tf.math.imag(out)
-
         return out_Real, out_Imaginary
         
 class complexfcLayer(tf.keras.layers.Layer):
@@ -576,14 +505,14 @@ class magnitudeLayer(tf.keras.layers.Layer):
 
         return out
 
-class VGG16_complex_dot_mul_multiobj(tf.keras.models.Model):
+class VGG16_CEMNet(tf.keras.models.Model):
 
     def __init__(self, batchSize):
         """
 
         :param input_shape: [32, 32, 3]
         """
-        super(VGG16_complex_dot_mul_multiobj, self).__init__()
+        super(VGG16_CEMNet, self).__init__()
 
         weight_decay = 5e-4
         self.num_classes = 10
