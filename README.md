@@ -1,4 +1,4 @@
-# CEMNet
+# TFDMNet
 Learning Convolutional Neural Networks in the Frequency Domain
 
 Our code should work with TensorFlow 2.3 or later.
@@ -30,3 +30,9 @@ Update log 2022-07-28:
 (1) We replace Leaky ReLUs using a new approximated relu layer, which is combined in the definition of approximated dropout layer. See the current arXiv edition of our paper for more details. 
 
 (2) We update CIFAR codes, which include data preparation, network and train_test. In our CIFAR code, we implement our new memory saving technique. See the current arXiv edition of our paper for more details.
+
+Update log 2023-09-06:
+
+(1) We update the CNN code to the mixture model (TFDMNet)
+
+(2) We add TFDMNet codes work with ImageNet database
