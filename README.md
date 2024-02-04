@@ -4,24 +4,15 @@ Learning Convolutional Neural Networks in the Frequency Domain
 Our code should work with TensorFlow 2.3 or later.
 
 
-If you hope to use the codes of CEMNet, please cite:
+If you hope to use the codes of TFDMNet, please cite:
 
-@misc{https://doi.org/10.48550/arxiv.2204.06718,
-  doi = {10.48550/ARXIV.2204.06718},
-  
-  url = {https://arxiv.org/abs/2204.06718},
-  
-  author = {Pan, Hengyue and Chen, Yixin and Niu, Xin and Zhou, Wenbo and Li, Dongsheng},
-  
-  keywords = {Computer Vision and Pattern Recognition (cs.CV), Artificial Intelligence (cs.AI), Machine Learning (cs.LG), FOS: Computer and information sciences, FOS: Computer and information sciences},
-  
-  title = {Learning Convolutional Neural Networks in the Frequency Domain},
-  
-  publisher = {arXiv},
-  
-  year = {2022},
-  
-  copyright = {Creative Commons Attribution 4.0 International}
+@misc{pan2024tfdmnet,
+      title={TFDMNet: A Novel Network Structure Combines the Time Domain and Frequency Domain Features}, 
+      author={Hengyue Pan and Yixin Chen and Zhiliang Tian and Peng Qiao and Linbo Qiao and Dongsheng Li},
+      year={2024},
+      eprint={2401.15949},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV}
 }
 
 
@@ -36,3 +27,7 @@ Update log 2023-09-06:
 (1) We update the CNN code to the mixture model (TFDMNet)
 
 (2) We add TFDMNet codes work with ImageNet database
+
+Update log 2024-02-05:
+
+(1) We update the related arxiv paper of TFDMNet
