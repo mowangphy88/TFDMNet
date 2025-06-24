@@ -142,7 +142,7 @@ print('done')
 # aeMetric  = tf.keras.metrics.MeanSquaredError()
 
 lr_time = 0.004
-minimum_learning_rate = 0.0000001
+minimum_learning_rate = 0.000001
 data_augmentation = False
 
 H = x_train_real.shape[1]
