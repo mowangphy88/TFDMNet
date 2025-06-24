@@ -154,7 +154,7 @@ test_num = 10000 # 50000
 iterations_per_epoch = int(train_num / batchSize)
 test_iterations = int(test_num / batchSize) + 1
 warm_iterations = iterations_per_epoch
-n_of_epochs = 900
+n_of_epochs = 600
 
 learning_rate_schedules = CosineDecayWithWarmUP(initial_learning_rate=lr_time,
                                                     decay_steps=n_of_epochs * iterations_per_epoch - warm_iterations,
